@@ -1,5 +1,3 @@
-// TODO: LEDs display backlight
-
 #include "DHT.h"
 #include <EEPROM.h>
 #include <LiquidCrystal.h>
@@ -19,8 +17,8 @@
 #define BRIGHT 31
 #define BPOWER 35
 #define BENTER 34
-#define LED_G 36
-#define LED_R 37
+#define LED_ON 36
+#define LED_OFF 37
 #define LED_HEAT 38
 #define LED_H_PAD 39
 #define LED_HUMID 40
@@ -41,7 +39,7 @@ DHT dht2(DHT2, DHTTYPE);
 DHT dht3(DHT3, DHTTYPE);
 DHT dht4(DHT4, DHTTYPE);
 
-// Display object TODO: fix inputs
+// Display object
 LiquidCrystal lcd(DISP_RS, DISP_E, DISP_DAT_4, DISP_DAT_5, DISP_DAT_6, DISP_DAT_7);
 
 // Fermentation starting settings
@@ -51,7 +49,7 @@ auto target_humid = 50.; // percent
 
 // Chamber/Arduino settings
 const auto CYCLE_LENGTH = 2000; // milliseconds
-const auto MAX_SD_T = 10; // TODO: empirically adjust these
+const auto MAX_SD_T = 10; // : empirically adjust these
 const auto MAX_SD_H = 10;
 const auto HEAT_MARGIN = 6;
 const auto H_PAD_MARGIN = 3;
@@ -60,7 +58,7 @@ const auto MIN_TEMP = 5;
 const auto MAX_TEMP = 200; // probably too hot
 const auto MIN_HUMID = 0;
 const auto MAX_HUMID = 100;
-const auto MAX_ADDRESS = 512; // TODO: check this
+const auto MAX_ADDRESS = 512;
 const auto MAX_DISPLAY = 5;
 
 
@@ -81,7 +79,6 @@ auto eeprom_address = 0;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Starting...");
   
   // outputs
   pinMode(H_PAD, OUTPUT);
@@ -120,6 +117,16 @@ void setup() {
     target_humid = stored_humid;
     new_humid = target_humid;
   }
+
+  // LEDs
+  pinMode(LED_ON, OUTPUT);
+  pinMode(LED_OFF, OUTPUT);
+  pinMode(LED_HEAT, OUTPUT);
+  pinMode(LED_H_PAD, OUTPUT);
+  pinMode(LED_HUMID, OUTPUT);
+  pinMode(LED_FANS, OUTPUT);
+
+  digitalWrite(LED_ON, HIGH);
 }
 
 void loop() {
@@ -134,9 +141,13 @@ void loop() {
       digitalWrite(FANS, LOW)
       digitalWrite(HUMID, LOW)
       digitalWrite(HEAT, LOW)
-      display_text("Powering off...");
+      display_text("Powering off...", "");
+      digitalWrite(LED_ON, LOW);
+      digitalWrite(LED_OFF, HIGH);
     } else{
-      display_text("Powering on...");
+      display_text("Powering on...", "");
+      digitalWrite(LED_ON, HIGH);
+      digitalWrite(LED_OFF, LOW);
     }
     power = !power;
   }
@@ -144,54 +155,6 @@ void loop() {
   if (!power){
     continue;
   }
-
-  // Move between setting temperature and humidity
-  if (digitalRead(BLEFT) == HIGH && !set_temp){
-    set_temp = true;
-    display_num("New temp:", new_temp);
-  }
-  
-  if (digitalRead(BRIGHT) == HIGH && set_temp){
-    set_temp = false;
-    display_num("New humid:", new_humid);
-    
-  }
-
-  // Increase temp/humidity
-  if (digitalRead(BUP) == HIGH){
-    if (set_temp && new_temp < MAX_TEMP){
-      new_temp++;
-      display_num("New temp:", new_temp);
-    } else if (new_humid < MAX_HUMID){
-      new_humid++;
-      display_num("New humid:", new_humid);
-    }
-  }
-
-  // Decrease temp/humidity
-  if (digitalRead(BDOWN) == HIGH){
-    if (set_temp && new_temp > MIN_TEMP){
-      new_temp--;
-      display_num("New temp:", new_temp);
-    } else if(new_humid > MIN_HUMID) {
-      new_humid--;
-      display_num("New humid:", new_humid);
-    }
-  }
-
-  // Set target to be new value
-  if (digitalRead(BENTER) == HIGH){
-    if (set_temp){
-      target_temp = new_temp;
-      EEPROM.update(0, target_temp);
-      display_num("Set temp:", target_temp);
-    } else {
-      target_humid = new_humid;
-      EEPROM.update(1, target_humid);
-      display_num("Set humid:", target_humid);
-    }
-  }
-
   // Read temp + humidity sensors
   const float t1 = dht1.readTemperature(true); 
   const float t2 = dht2.readTemperature(true); 
@@ -210,6 +173,52 @@ void loop() {
   const float h_sd = pow((pow(h1 - avg_h, 2) + pow(h2 - avg_h, 2) +
   pow(h3 - avg_h, 2) + pow(h4 - avg_h, 2))/4, 0.5);
 
+  // Move between setting temperature and humidity
+  if (digitalRead(BLEFT) == HIGH){
+    set_temp = true;
+    display_text("Curr temp: " + avg_t, "Target temp: " + target_temp);
+  }
+  
+  if (digitalRead(BRIGHT) == HIGH){
+    set_temp = false;
+    display_text("Curr humid: " + avg_h, "Target humid: " + target_humid);    
+  }
+
+  // Increase temp/humidity
+  if (digitalRead(BUP) == HIGH){
+    if (set_temp && new_temp < MAX_TEMP){
+      new_temp++;
+      display_text("New temp:" + new_temp, "Target temp: " + target_temp);
+    } else if (new_humid < MAX_HUMID){
+      new_humid++;
+      display_text("New humid:" + new_humid, "Target humid: " + target_humid);
+    }
+  }
+
+  // Decrease temp/humidity
+  if (digitalRead(BDOWN) == HIGH){
+    if (set_temp && new_temp > MIN_TEMP){
+      new_temp--;
+      display_text("New temp:" + new_temp, "Target temp: " + target_temp);
+    } else if(new_humid > MIN_HUMID) {
+      new_humid--;
+      display_text("New humid:" + new_humid, "Target humid: " + target_humid);
+    }
+  }
+
+  // Set target to be new value
+  if (digitalRead(BENTER) == HIGH){
+    if (set_temp){
+      target_temp = new_temp;
+      EEPROM.update(0, target_temp);
+      display_text("Set temp:" + target_temp, "");
+    } else {
+      target_humid = new_humid;
+      EEPROM.update(1, target_humid);
+      display_text("Set humid:" + target_humid, "");
+    }
+  }
+
   // Determine if heaters/humidifiers should turn on
   bool new_h_pad = get_state(h_pad, TARGET_TEMP, H_PAD_MARGIN);
   bool new_humid = get_state(humid, TARGET_HUMID, HUMID_MARGIN);
@@ -222,27 +231,29 @@ void loop() {
   }
 
   // Turn on/off elements
-  h_pad = set_pin(new_h_pad, h_pad, H_PAD);
-  fans = set_pin(new_fans, fans, FANS);
-  humid = set_pin(new_humid, humid, HUMID);
-  heat = set_pin(new_heat, heat, HEAT);
+  h_pad = set_pin(new_h_pad, h_pad, H_PAD, LED_H_PAD);
+  fans = set_pin(new_fans, fans, FANS, LED_FANS);
+  humid = set_pin(new_humid, humid, HUMID, LED_HUMID);
+  heat = set_pin(new_heat, heat, HEAT, LED_HEAT);
 
   // Record current state
   record_state(avg_t, avg_h);
 
   // Reset display if it hasn't changed
-  reset_display();
+  reset_display(set_temp);
 }
 
 // HELPER FUNCTIONS
 
 // Set a pin to a (digital) setting. Only writes to the pin if setting has changed
-bool set_pin(bool new_set, bool old_set, int pin){
+bool set_pin(bool new_set, bool old_set, int pin, int led_pin){
   if (new_set != old_set){
     if (new_set){
       digitalWrite(pin, HIGH);
+      digitalWrite(led_pin, HIGH);      
     } else {
       digitalWrite(pin, LOW);
+      digitalWrite(led_pin, LOW);
     }
   }
   return new_set;
@@ -276,32 +287,28 @@ int incr_address(){
   }
 }
 
-// Display text and number
-void display_num(String text, int num){
-  if (display_on){
-    lcd.clear();
-  }
-  lcd.print(text);
-  lcd.setCursor(0, 1);
-  lcd.print(num);
-  display_iters = 0;
-  display_on = true;
-}
-
 // Display text
-void display_text(String text){
+void display_text(String row1, int row2){
   if (display_on){
     lcd.clear();
   }
-  lcd.print(text);
+  lcd.print(row1);
+  lcd.setCursor(0, 1);
+  lcd.print(row2);
+  digitalWrite(DISP_POWER, HIGH);
   display_iters = 0;
   display_on = true;
 }
 
 // Clear the display if it hasn't changed for MAX_DISPLAY iterations
-void reset_display(){
+void reset_display(bool temp){
   if (display_on && display_iters >= MAX_DISPLAY){
-    lcd.clear();
+    digitalWrite(DISP_POWER, LOW);
+    if (temp){
+      display_text("Curr temp: " + avg_t, "Target temp: " + target_temp); 
+    } else {
+      display_text("Curr humid: " + avg_h, "Target humid: " + target_humid);
+    }
     display_iters = 0;
     display_on = false;
   }
