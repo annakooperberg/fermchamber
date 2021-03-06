@@ -1,27 +1,37 @@
-// bid heater => fans
-// humidifier => fans
-// high variance => fans
+// TODO: LEDs display backlight
 
 #include "DHT.h"
 #include <EEPROM.h>
 #include <LiquidCrystal.h>
 
 
-// TODO: fix pins
-#define DHT1 2
-#define DHT2 3
-#define DHT3 4
-#define DHT4 5
-#define H_PAD 6
-#define FANS 7
-#define HUMID 8
-#define HEAT 9
-#define BUP 10
-#define BDOWN 10
-#define BLEFT 11
-#define BRIGHT 12
-#define BPOWER 13
-#define BENTER 14
+#define DHT1 4
+#define DHT2 5
+#define DHT3 6
+#define DHT4 7
+#define H_PAD 43
+#define FANS 45
+#define HUMID 44
+#define HEAT 42
+#define BUP 32
+#define BDOWN 33
+#define BLEFT 30
+#define BRIGHT 31
+#define BPOWER 35
+#define BENTER 34
+#define LED_G 36
+#define LED_R 37
+#define LED_HEAT 38
+#define LED_H_PAD 39
+#define LED_HUMID 40
+#define LED_FANS 41
+#define DISP_RS 48
+#define DISP_E 49
+#define DISP_DAT_4 50
+#define DISP_DAT_5 51
+#define DISP_DAT_6 52
+#define DISP_DAT_7 53
+#define DISP_POWER 8
 
 #define DHTTYPE DHT22
 
@@ -32,7 +42,7 @@ DHT dht3(DHT3, DHTTYPE);
 DHT dht4(DHT4, DHTTYPE);
 
 // Display object TODO: fix inputs
-LiquidCrystal lcd(12, 11, 4, 5, 6, 7);
+LiquidCrystal lcd(DISP_RS, DISP_E, DISP_DAT_4, DISP_DAT_5, DISP_DAT_6, DISP_DAT_7);
 
 // Fermentation starting settings
 auto target_temp = 80.; // Fahrenheit
@@ -89,6 +99,7 @@ void setup() {
 
   // display
   lcd.clear();
+  pinMode(DISP_POWER, OUTPUT);
   
   // sensors
   dht1.begin(); 
