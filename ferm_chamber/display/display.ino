@@ -1,11 +1,17 @@
 #include <LiquidCrystal.h>
 
-LiquidCrystal lcd(12, 11, 4, 5, 6, 7);
-const int transistor = 2;
+LiquidCrystal lcd(48, 49, 50, 51, 52, 53);
+const int reset_pin = 9;
+const int transistor = 8;
 
 void setup() {
   pinMode (transistor, OUTPUT);
-    // set up the LCD's number of columns and rows:
+  pinMode (reset_pin, OUTPUT);
+  digitalWrite (reset_pin, HIGH);
+  digitalWrite (reset_pin, LOW);
+  digitalWrite(reset_pin, HIGH);
+  
+  // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
 
   // Clears the LCD screen
