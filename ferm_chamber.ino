@@ -65,6 +65,7 @@ auto new_humid = target_humid;
 bool power = true;
 bool set_temp = true;
 int display_iters = 0;
+bool display_on = false;
 
 auto eeprom_address = 0;
 
@@ -266,24 +267,31 @@ int incr_address(){
 
 // Display text and number
 void display_num(String text, int num){
-  lcd.clear();
+  if (display_on){
+    lcd.clear();
+  }
   lcd.print(text);
   lcd.setCursor(0, 1);
   lcd.print(num);
   display_iters = 0;
+  display_on = true;
 }
 
 // Display text
 void display_text(String text){
-  lcd.clear();
+  if (display_on){
+    lcd.clear();
+  }
   lcd.print(text);
   display_iters = 0;
+  display_on = true;
 }
 
 // Clear the display if it hasn't changed for MAX_DISPLAY iterations
 void reset_display(){
-  display_iters ++;
-  if (display_iters >= MAX_DISPLAY){
+  if (display_on && display_iters >= MAX_DISPLAY){
     lcd.clear();
+    display_iters = 0;
+    display_on = false;
   }
 }
