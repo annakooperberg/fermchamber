@@ -30,6 +30,7 @@
 #define DISP_DAT_6 52
 #define DISP_DAT_7 53
 #define DISP_POWER 8
+#define RESET_PIN 9
 
 #define DHTTYPE DHT22
 
@@ -95,9 +96,13 @@ void setup() {
   pinMode(BENTER, INPUT);
 
   // display
-  lcd.clear();
   pinMode(DISP_POWER, OUTPUT);
-  
+  pinMode (RESET_PIN, OUTPUT);
+  digitalWrite (RESET_PIN, HIGH);
+  digitalWrite (RESET_PIN, LOW);
+  digitalWrite(RESET_PIN, HIGH);
+  lcd.clear();
+
   // sensors
   dht1.begin(); 
   dht2.begin(); 
@@ -165,33 +170,33 @@ void loop() {
   const float h3 = dht3.readHumidity();
   const float h4 = dht4.readHumidity();
   
-  const float avg_t = (t1 + t2 + t3 + t4)/4;
-  const float avg_h = (h1 + h2 + h3 + h4)/4;
+  const int avg_t = (int) (t1 + t2 + t3 + t4)/4;
+  const int avg_h = (int) (h1 + h2 + h3 + h4)/4;
   
-  const float t_sd = pow((pow(t1 - avg_t, 2) + pow(t2 - avg_t, 2) +
+  const int t_sd = (int) pow((pow(t1 - avg_t, 2) + pow(t2 - avg_t, 2) +
   pow(t3 - avg_t, 2) + pow(t4 - avg_t, 2))/4, 0.5);
-  const float h_sd = pow((pow(h1 - avg_h, 2) + pow(h2 - avg_h, 2) +
+  const int h_sd = (int) pow((pow(h1 - avg_h, 2) + pow(h2 - avg_h, 2) +
   pow(h3 - avg_h, 2) + pow(h4 - avg_h, 2))/4, 0.5);
 
   // Move between setting temperature and humidity
   if (digitalRead(BLEFT) == HIGH){
     set_temp = true;
-    display_text("Curr temp: " + avg_t, "Target temp: " + target_temp);
+    display_text(cat("Curr temp: ", avg_t), cat("Target temp: ", target_temp));
   }
   
   if (digitalRead(BRIGHT) == HIGH){
     set_temp = false;
-    display_text("Curr humid: " + avg_h, "Target humid: " + target_humid);    
+    display_text(cat("Curr humid: ", avg_h), cat("Target humid: ", target_humid));
   }
 
   // Increase temp/humidity
   if (digitalRead(BUP) == HIGH){
     if (set_temp && new_temp < MAX_TEMP){
       new_temp++;
-      display_text("New temp:" + new_temp, "Target temp: " + target_temp);
+      display_text(cat("New temp: ", new_temp), cat("Target temp: ", target_temp));
     } else if (new_humid < MAX_HUMID){
       new_humid++;
-      display_text("New humid:" + new_humid, "Target humid: " + target_humid);
+      display_text(cat("New humid: ", new_humid), cat("Target humid: ", target_humid));
     }
   }
 
@@ -199,10 +204,10 @@ void loop() {
   if (digitalRead(BDOWN) == HIGH){
     if (set_temp && new_temp > MIN_TEMP){
       new_temp--;
-      display_text("New temp:" + new_temp, "Target temp: " + target_temp);
+      display_text(cat("New temp: ", new_temp), cat("Target temp: ", target_temp));
     } else if(new_humid > MIN_HUMID) {
       new_humid--;
-      display_text("New humid:" + new_humid, "Target humid: " + target_humid);
+      display_text(cat("New humid: ", new_humid), cat("Target humid: ", target_humid));
     }
   }
 
@@ -211,11 +216,11 @@ void loop() {
     if (set_temp){
       target_temp = new_temp;
       EEPROM.update(0, target_temp);
-      display_text("Set temp:" + target_temp, "");
+      display_text(cat("Set temp:", target_temp), "");
     } else {
       target_humid = new_humid;
       EEPROM.update(1, target_humid);
-      display_text("Set humid:" + target_humid, "");
+      display_text(cat("Set humid:", target_humid), "");
     }
   }
 
@@ -240,7 +245,7 @@ void loop() {
   record_state(avg_t, avg_h);
 
   // Reset display if it hasn't changed
-  reset_display(set_temp);
+  reset_display(set_temp, avg_t, avg_h, target_temp, target_humid);
 }
 
 // HELPER FUNCTIONS
@@ -301,15 +306,25 @@ void display_text(String row1, int row2){
 }
 
 // Clear the display if it hasn't changed for MAX_DISPLAY iterations
-void reset_display(bool temp){
+void reset_display(bool temp, int avg_t, int avg_h, int target_temp, int target_humid){
   if (display_on && display_iters >= MAX_DISPLAY){
     digitalWrite(DISP_POWER, LOW);
+    lcd.clear();
     if (temp){
-      display_text("Curr temp: " + avg_t, "Target temp: " + target_temp); 
+      lcd.print(cat("Curr temp: ", avg_t));
+      lcd.setCursor(0, 1);
+      lcd.print(cat("Target temp: ", target_temp));
     } else {
-      display_text("Curr humid: " + avg_h, "Target humid: " + target_humid);
+      lcd.print(cat("Curr humid: ", avg_h));
+      lcd.setCursor(0, 1);
+      lcd.print(cat("Target humid: ", target_humid));
     }
     display_iters = 0;
     display_on = false;
   }
+}
+
+// Concat string and int
+String cat(String str, int i){
+    return str + i;
 }
